@@ -1,0 +1,37 @@
+# Initialize the non-polarizable data file 
+# This file will then be converted into a polarizable data file
+# It will be converted via polarizer.py, from DRUDE tools
+# We will also take advantage of the params.dff file.
+
+# Default settings, 3d w/ periodic boundary box, meaning that molecules clipping outside the box enter in through the other side.
+dimension 3
+boundary p p p
+
+# More default settings. LJ -> Unitless, 
+units lj
+
+# atoms need a full pair style in order to use DRUDE oscillators. molecule with bonds, charge, 
+atom_style full
+
+# System definition
+
+# 11 x 11 x 11 box
+region simulation_box block -5.5 5.5 -5.5 5.5 -5.5 5.5
+create_box 1 simulation_box
+
+
+# Add atoms to the box
+create_atoms 1 random 20 69420 simulation_box
+pair_style lj/cut 2.5
+# Simulation Settings
+
+# Set mass
+mass 1 18.0
+pair_coeff	  1 1 1.0 1.0 
+
+# Write the data to a file (we use nocoeff so that we can polarize properly)
+neighbor 3.0 bin
+neigh_modify delay 0 every 1 check yes
+minimize 1.0e-14 1.0e-16 1000 10000
+
+write_data non_polarizable_small.data nocoeff

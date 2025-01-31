@@ -1,0 +1,37 @@
+Next Steps:
+
+Seems like params might be off;
+
+Set thermostatted reduced temperature to be ~= 1, set thermostatted DC-DP pairs to be ~=0.01
+
+1931 Review, A = 4 episslon 
+
+Exam `params.dff`
+
+
+
+Calculate dielectric constant from this:
+
+Box size: constant
+number of particles
+polarizability: drude oscillators
+does the mass matter, does the radius matter: we use lennard-jones interactions
+https://sites.psu.edu/simtech/dielectric-constant-of-polar-liquids-using-md-simulations/
+
+M.Neumann:
+
+epsilon - 1   4pi <M^2>
+----------- = --- -------
+epsilon + 2    3  3 Vk_bT
+
+M is dipole squared
+
+Make sure units are reasonable, cgs vs 
+
+SI is maybe without 4pi/3
+
+epsilon = 1 + chi, can solve for chi, and limit when M^2 is really small, our equation should reduce to that one
+
+Convert from cgs to SI, and go through derivation of neumann paper 
+
+Want to be looking specifically at toirodial boundary conditions
