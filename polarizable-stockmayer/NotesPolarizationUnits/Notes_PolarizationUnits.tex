@@ -1,0 +1,118 @@
+\documentclass[aps, 12pt, amsmath, amssymb, onecolumn, notitlepage, nofootinbib]{revtex4-1}
+
+\usepackage{graphicx}% Include figure files
+\usepackage{dcolumn}% Align table columns on decimal point
+\usepackage{bm}% bold math
+\usepackage{amsmath} 
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{subfigure}
+\usepackage{fancyvrb}
+\usepackage{tikz}      % for drawing graphics
+%\usepackage[section]{placeins}
+
+\renewcommand{\baselinestretch}{1.20}\normalsize
+
+\newcommand{\br}{\mathbf{r}}
+\newcommand{\bk}{\mathbf{k}}
+\newcommand{\dd}[2]{\frac{\partial #1}{\partial #2}}
+
+\allowdisplaybreaks
+
+\begin{document}
+%%%%%%%%
+% title
+%%%%%%%%
+
+\title{{\small\it{Notes}}\\ Notes on the Units for Polarizability }
+\author{Bilin Zhuang}
+\email{bzhuang@hmc.edu}
+\affiliation{Harvey Mudd College}
+\date{\today}
+
+
+%%%%%%%%%%%
+% abstract
+%%%%%%%%%%%
+
+\begin{abstract}
+
+This notes explore the units and the magnitudes of numerical quantities used in the polarizability calculation.
+	
+\end{abstract}
+
+\maketitle
+
+\section{Water}
+
+Let us first take a look at water's polarizability and its corresponding index of refraction. This would help us to get a sense of the magnitudes of the quantities in the different units.
+
+\subsection{CGS unit}
+
+ Water polarizability is $\alpha = 1.45$ \AA$^3$ $= 1.45 \times 10^{-24}\ \text{cm}^3$ expressed in the cgs unit.
+
+ To calculate the index of refraction, we can use the Lorentz-Lorenz relation in cgs unit given by
+\begin{equation}
+\alpha = \frac{3}{4\pi n} \left( \frac{\eta^2 - 1 }{\eta^2 +2} \right)
+\end{equation}
+where $\eta$ is the index of refraction and $n$ is the number density of the water molecule. Rearranging the equation gives
+\begin{eqnarray}
+\frac{4\pi n\alpha}{3} &=&   \left( \frac{\eta^2 - 1 }{\eta^2 +2} \right) \nonumber\\
+\gamma &=&   \left( \frac{\eta^2 - 1 }{\eta^2 +2} \right) \nonumber\\
+\gamma\eta^2 +2\gamma &=&  \eta^2 - 1\nonumber\\
+2\gamma + 1 &=&  (1-\gamma) \eta^2\nonumber\\ 
+\eta &=&  \sqrt{\frac{1 + 2\gamma}{1-\gamma}}
+\label{refracIndex}
+\end{eqnarray}
+where we have set $\gamma = \frac{4\pi n\alpha}{3}$ in the second equality. 
+
+
+Water's density at room temperature is 0.997 g/cm$^3$ and its molar mass is 18.01528 g/mol. The number density can be worked out as
+\begin{eqnarray}
+n &=&  \frac{(0.997\ \text{g/cm}^3) \left( \frac{1\ \text{cm}^3}{10^{24}\ \text{\AA}^3} \right)}{(18.01528\ \text{g/mol}) \left( \frac{1\ \text{mol}}{6.02\ \times 10^{23}\ \text{molecules} }\right)}\nonumber\\
+&=& 0.03332\ \text{\AA}^{-3}
+\label{numberDenisty}
+\end{eqnarray}
+
+
+Substituting the various values into Eq.~\eqref{refracIndex}, we have the following value for refractive index of water
+\begin{eqnarray}
+\gamma &=& \frac{4\pi n\alpha}{3} = \frac{4\pi (0.03332\ \text{\AA}^{-3})( 1.45\ \text{\AA}^3)}{3} =0.2024 \nonumber\\
+\eta &=&  \sqrt{\frac{1 + 2\times 0.2024 }{1-0.2024}} = 1.327
+\end{eqnarray}
+which is consistent with water's measured refractive index at 1.33 at 20$^\circ$C.
+
+Note that the optical dielectric constant (the part of the dielectric constant due to polarizability) is given by $\varepsilon = n^2$.   
+
+
+\section{LAMMPS Calculation Unit}
+
+We run the simulations in Lennard-Jones Units in LAMMPS. The Lennard-Jones Units is defined by Lennard-Jones length $\sigma$ and Lennard-Jones energy $\epsilon$.
+
+There is no other length unit in the LAMMPS calculation. So the polarizability must have been in units of $\sigma^3$. 
+
+Currently, we have $n = \frac{900}{11^3 \sigma^3}$ and $\alpha = 1.5 \sigma^3$. That would make $\gamma>1$, possibly this is too large. (Is it because of this that our Drude electrons are flying away?)
+
+
+\section{Reasonable value to use for water?}
+
+Let's try to come up with a set of parameters to use for water based on the SWM4-NDP model of water. In that model, $\sigma = 3.18395\ \text{\AA}^3$. Therefore, the polarizability is $\alpha = 1.45\ \text{\AA}^3 = 0.0449 \sigma^3$. Water's density is $0.03332\ \text{\AA}^{-3}$, that is a density of $n = 1.0755 \sigma^{-3}$ in Lennard Jones Units.
+
+In the SWM4-NDP model, we also have the energy unit $\epsilon = 0.21094\ \text{kcal/mol} = 1.466 \times 10^{-21}\ \text{J/molecule}$, so the temperature unit is $\epsilon/k_B = 106.2\ \text{K}$. That is to say, if we want to simulate a temperature at 300 K, it is 2.823 $\epsilon/k_B$ as temperature in Lennard-Jones units. Similarly, for the Drude oscillator at 1 K, it is 0.009413  $\epsilon/k_B$ as temperature in Lennard-Jones units.
+ 
+
+
+
+%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\bibliography{$HOME/Research_Literature/Research_General_Literature/General_lit_bib.bib}
+
+\end{document}
+
+
+
