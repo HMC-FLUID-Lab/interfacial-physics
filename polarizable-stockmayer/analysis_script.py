@@ -13,6 +13,7 @@ class Data(object):
         self.bonds = []
         self.idmap = {}
         self.nselect = 1
+        self.charge_map = {}  # New mapping for atom IDs to charges
 
         f = open(datafile, "r")
         self.title = f.readline()
@@ -131,7 +132,11 @@ class Data(object):
             else:
                 atom["note"] = " ".join(tok[7:])
             self.atoms.append(atom)
+            print(atom)
             self.idmap[atom["n"]] = atom
+            
+            # Create mapping from atom ID to charge
+            self.charge_map[atom["n"]] = atom["q"]
 
         # extract bond data
         for line in self.sections["Bonds"]:
@@ -188,13 +193,10 @@ class Box:
         self.lengths = self.bounds[:, 1] - self.bounds[:, 0]
 
     def minimum_image(self, r1, r2):
-        """Apply minimum image convention"""
+        """Apply minimum image convention using numpy vectorized operations"""
         dr = r2 - r1
-        for i in range(3):
-            while dr[i] > self.lengths[i]/2:
-                dr[i] -= self.lengths[i]
-            while dr[i] < -self.lengths[i]/2:
-                dr[i] += self.lengths[i]
+        # Apply periodic boundary conditions in one vectorized step
+        dr = dr - np.round(dr / self.lengths) * self.lengths
         return dr
 
 class BondDipole:
@@ -208,8 +210,14 @@ class BondDipole:
 
     def calculate_dipole(self, box):
         """Calculate dipole moment considering PBC"""
-        dr = box.minimum_image(self.r1, self.r2)
-        return self.q1 * dr
+        # dr = box.minimum_image(self.r1, self.r2)
+
+        dipole_moment = self.q2 * self.r2 + self.q1 * self.r1 # big
+        # dipole_moment = self.q2 * dr # small
+
+        if np.linalg.norm(dipole_moment) > 10:
+            print(np.linalg.norm(dipole_moment))
+        return dipole_moment
 
 class Timestep:
     def __init__(self, timestep, box_bounds):
@@ -262,48 +270,63 @@ class DumpAnalyzer:
         self.data = data_file
         self.timesteps = []
         self.bonds = data_file.bonds
+        self.charge_map = data_file.charge_map  # Get charge mapping from data file
         self.read_dump()
 
     def read_dump(self):
-        with open(self.dump_file, 'r') as f:
-            while True:
-                line = f.readline()
-                if not line:
-                    break
+        try:
+            with open(self.dump_file, 'r') as f:
+                while True:
+                    line = f.readline()
+                    if not line:
+                        break
 
-                if "ITEM: TIMESTEP" not in line:
-                    continue
+                    if "ITEM: TIMESTEP" not in line:
+                        continue
 
-                timestep_num = int(f.readline().strip())
-                
-                f.readline()  # Skip "ITEM: NUMBER OF ATOMS"
-                num_atoms = int(f.readline().strip())
+                    timestep_num = int(f.readline().strip())
+                    
+                    f.readline()  # Skip "ITEM: NUMBER OF ATOMS"
+                    num_atoms = int(f.readline().strip())
 
-                f.readline()  # Skip "ITEM: BOX BOUNDS"
-                box_bounds = []
-                for _ in range(3):
-                    lo, hi = map(float, f.readline().split())
-                    box_bounds.append([lo, hi])
+                    f.readline()  # Skip "ITEM: BOX BOUNDS"
+                    box_bounds = []
+                    for _ in range(3):
+                        lo, hi = map(float, f.readline().split())
+                        box_bounds.append([lo, hi])
 
-                ts = Timestep(timestep_num, box_bounds)
+                    ts = Timestep(timestep_num, box_bounds)
 
-                f.readline()  # Skip "ITEM: ATOMS"
+                    f.readline()  # Skip "ITEM: ATOMS"
 
-                for _ in range(num_atoms):
-                    tokens = f.readline().split()
-                    atom_id = int(tokens[0])
-                    mol_id = int(tokens[1])
-                    atom_type = int(tokens[2])
-                    q = float(tokens[4])
-                    x, y, z = map(float, tokens[5:8])
-                    ts.add_atom(atom_id, mol_id, atom_type, q, x, y, z)
+                    for _ in range(num_atoms):
+                        tokens = f.readline().split()
+                        atom_id = int(tokens[0])
+                        mol_id = int(tokens[1])
+                        atom_type = int(tokens[2])
+                        
+                        # Use charge from data file instead of hardcoded value
+                        q = self.charge_map.get(atom_id, 0.0)  # Default to 0 if not found
+                        
+                        x, y, z = map(float, tokens[4:7])
+                        ts.add_atom(atom_id, mol_id, atom_type, q, x, y, z)
 
-                ts.process_bonds(self.bonds)
-                ts.calculate_total_dipole()
-                self.timesteps.append(ts)
+                    ts.process_bonds(self.bonds)
+                    ts.calculate_total_dipole()
+                    self.timesteps.append(ts)
+        except FileNotFoundError:
+            print(f"Error: Could not find dump file '{self.dump_file}'")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error processing dump file: {e}")
+            sys.exit(1)
 
     def plot_dipole_analysis(self):
         """Create plots of dipole evolution"""
+        if not self.timesteps:
+            print("No timesteps found to analyze")
+            return
+            
         timestamps = [ts.timestep for ts in self.timesteps]
         magnitudes = [ts.dipole_magnitude for ts in self.timesteps]
         components = np.array([ts.dipole_moment for ts in self.timesteps])
@@ -329,6 +352,7 @@ class DumpAnalyzer:
         
         print("\nDipole Analysis Statistics:")
         print(f"Average magnitude: {np.mean(magnitudes):.4f}")
+        print(f"Median magnitude: {np.median(magnitudes):.4f}")
         print(f"Maximum magnitude: {np.max(magnitudes):.4f}")
         print(f"Minimum magnitude: {np.min(magnitudes):.4f}")
         print("\nComponent averages:")
@@ -337,10 +361,26 @@ class DumpAnalyzer:
         print(f"Z: {np.mean(components[:, 2]):.4f}")
 
 def main():
-    data = Data("cool_stuff.data")
-    data.extract_pol()
-    analyzer = DumpAnalyzer('dump.lammpstrj', data)
-    analyzer.plot_dipole_analysis()
+    if len(sys.argv) > 2:
+        data_file = sys.argv[1]
+        dump_file = sys.argv[2]
+    else:
+        data_file = "cool_stuff.data"
+        dump_file = "dump.lammpstrj"
+        print(f"Using default filenames: {data_file} and {dump_file}")
+        print("Use: python script.py [data_file] [dump_file] to specify file names")
+    
+    try:
+        data = Data(data_file)
+        data.extract_pol()
+        analyzer = DumpAnalyzer(dump_file, data)
+        analyzer.plot_dipole_analysis()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error during analysis: {e}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
