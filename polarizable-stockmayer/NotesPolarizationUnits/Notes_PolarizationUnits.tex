@@ -110,25 +110,25 @@ In the SWM4-NDP model, we also have the energy unit $\epsilon = 0.21094\ \text{k
 
 The dimension of energy is 
 \begin{equation}
-[\text{energy}] = [\text{mass}][\text{length}]^2[\text{time}]^2
+[\text{energy}] = [\text{mass}][\text{length}]^2[\text{time}]^{-2}
 \end{equation}
 so the unit of time (let us denote it by $\tau$) in LAMMPS is given by
 \begin{equation}
-\tau = \left(\frac{\epsilon}{m \sigma^2}\right)^\frac{1}{2} 
+\tau = \left(\frac{m \sigma^2}{\epsilon}\right)^\frac{1}{2} 
 \label{tau}
 \end{equation}
 where the mass $m$ is the mass of the particle.
 
 If we convert this to the SI unit, this is
 \begin{eqnarray}
-\tau &=&  \left(\frac{\epsilon}{m \sigma^2}\right)^\frac{1}{2} \nonumber\\
-&=& \left(\frac{1.466 \times 10^{-21}\ \text{J/molecule} }{(18 \times 1.66 \times 10^{-27}\ \text{kg/molecule} ) (3.18395\ \times 10^{-10} \text{m})^2}\right)^\frac{1}{2} \nonumber\\
-&=& 6.957 \times 10^{11}\ \text{s} 
+\tau &=&  \left(\frac{m \sigma^2}{\epsilon}\right)^\frac{1}{2} \nonumber\\
+&=& \left(\frac{(18 \times 1.66 \times 10^{-27}\ \text{kg/molecule} ) (3.18395\ \times 10^{-10} \text{m})^2}{1.466 \times 10^{-21}\ \text{J/molecule} }\right)^\frac{1}{2} \nonumber\\
+&=& 1.437 \times 10^{-12}\ \text{s} 
 \end{eqnarray}
 
 In the Langevin integrator, the damping coefficient is approximately $1/(10\ \text{ps}^{-1})$. We can convert that to the LJ unit as follows:
 \begin{equation}
-\frac{1}{(10\ \text{ps}^{-1})} = \frac{1}{(10\ \text{ps}^{-1})} \frac{1\ \text{s}}{10^{12} \text{ps}}  \frac{\tau}{6.957 \times 10^{11}\ \text{s}}
+\frac{1}{(10\ \text{ps}^{-1})} = \frac{1}{(10\ \text{ps}^{-1})} \frac{1\ \text{s}}{10^{12} \text{ps}}  \frac{\tau}{ 1.437 \times 10^{-12}\ \text{s}}
 \end{equation}
 %
 
