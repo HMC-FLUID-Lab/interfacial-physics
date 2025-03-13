@@ -96,13 +96,40 @@ Currently, we have $n = \frac{900}{11^3 \sigma^3}$ and $\alpha = 1.5 \sigma^3$. 
 
 \section{Reasonable value to use for water?}
 
-Let's try to come up with a set of parameters to use for water based on the SWM4-NDP model of water. In that model, $\sigma = 3.18395\ \text{\AA}^3$. Therefore, the polarizability is $\alpha = 1.45\ \text{\AA}^3 = 0.0449 \sigma^3$. Water's density is $0.03332\ \text{\AA}^{-3}$, that is a density of $n = 1.0755 \sigma^{-3}$ in Lennard Jones Units.
+\subsection{Length and density}
+
+Let's try to come up with a set of parameters to use for water based on the SWM4-NDP model of water. In that model, $\sigma = 3.18395\ \text{\AA}$. Therefore, the polarizability is $\alpha = 1.45\ \text{\AA}^3 = 0.0449 \sigma^3$. Water's density is $0.03332\ \text{\AA}^{-3}$, that is a density of $n = 1.0755 \sigma^{-3}$ in Lennard Jones Units.
+
+
+\subsection{Energy and temperature}
 
 In the SWM4-NDP model, we also have the energy unit $\epsilon = 0.21094\ \text{kcal/mol} = 1.466 \times 10^{-21}\ \text{J/molecule}$, so the temperature unit is $\epsilon/k_B = 106.2\ \text{K}$. That is to say, if we want to simulate a temperature at 300 K, it is 2.823 $\epsilon/k_B$ as temperature in Lennard-Jones units. Similarly, for the Drude oscillator at 1 K, it is 0.009413  $\epsilon/k_B$ as temperature in Lennard-Jones units.
  
 
+\subsection{Time}
 
+The dimension of energy is 
+\begin{equation}
+[\text{energy}] = [\text{mass}][\text{length}]^2[\text{time}]^2
+\end{equation}
+so the unit of time (let us denote it by $\tau$) in LAMMPS is given by
+\begin{equation}
+\tau = \left(\frac{\epsilon}{m \sigma^2}\right)^\frac{1}{2} 
+\label{tau}
+\end{equation}
+where the mass $m$ is the mass of the particle.
 
+If we convert this to the SI unit, this is
+\begin{eqnarray}
+\tau &=&  \left(\frac{\epsilon}{m \sigma^2}\right)^\frac{1}{2} \nonumber\\
+&=& \left(\frac{1.466 \times 10^{-21}\ \text{J/molecule} }{(18 \times 1.66 \times 10^{-27}\ \text{kg/molecule} ) (3.18395\ \times 10^{-10} \text{m})^2}\right)^\frac{1}{2} \nonumber\\
+&=& 6.957 \times 10^{11}\ \text{s} 
+\end{eqnarray}
+
+In the Langevin integrator, the damping coefficient is approximately $1/(10\ \text{ps}^{-1})$. We can convert that to the LJ unit as follows:
+\begin{equation}
+\frac{1}{(10\ \text{ps}^{-1})} = \frac{1}{(10\ \text{ps}^{-1})} \frac{1\ \text{s}}{10^{12} \text{ps}}  \frac{\tau}{6.957 \times 10^{11}\ \text{s}}
+\end{equation}
 %
 
 
