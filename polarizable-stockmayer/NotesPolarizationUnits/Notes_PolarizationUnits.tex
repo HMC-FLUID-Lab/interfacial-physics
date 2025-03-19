@@ -42,6 +42,8 @@ This notes explore the units and the magnitudes of numerical quantities used in 
 \end{abstract}
 
 \maketitle
+
+
 \section{The Clausius--Mossotti Equation in Various Units}
 
 In this section, let us take a look at the Clausius--Mossotti Equation in the various units.
@@ -61,8 +63,9 @@ With the above, the Clausius Mossotti Equation in the CGS unit is given by
 \frac{\varepsilon-1}{\varepsilon+2} = \frac{4 \pi}{3} N \alpha
 \end{equation}
 
+Note that we are using $\alpha_\text{SI}$ to denote polarizability in SI units and $\alpha$ to denote polarizability in CGS units. We may also use the Lorentz-Lorenz relation using $\varepsilon = n^2$, with $n$ being the refractive index. 
+
  
-\section{Calculation of the Dielectric Constant in Various Units}
 
 \section{Water}
 
@@ -154,6 +157,56 @@ In the Langevin integrator, the damping coefficient is approximately $1/(10\ \te
 %
 
 
+\section{Calculation of the Polarizability and Dielectric Constant in LAMMPS simulation with real units}
+
+\subsection{Polarizability}
+
+Firstly, the polarizability of the system is specified by the charge of the Drude particle and spring constant.
+\begin{equation}
+\alpha_\text{SI} = \frac{q_D^2}{k_D} 
+\end{equation}
+
+In CGS unit, this translates to
+\begin{eqnarray}
+\alpha = \frac{q_D^2}{4 \pi \varepsilon_0 k_D} 
+\end{eqnarray}
+
+Suppose we are running with $q_D = 1.00\ e$ and $k_D = 250\ \text{kcal/mol/\AA}^2$, the corresponding $\alpha$ is given by
+\begin{eqnarray}
+\alpha &=&  \frac{q_D^2}{4 \pi \varepsilon_0 k_D} \nonumber\\
+&=&  \frac{(1.00\ e) \left( \frac{1.60 \times 10^{-19}\ \text{C}}{1\ e} \right)^2}{4\pi \left( 8.85 \times 10^{-12}\ \text{C}^2 \text{J}^{-1} \text{m}^{-1} \right) \left( 250\ \text{kcal/mol/\AA}^2 \right)  \left( \frac{4184\ \text{J}}{1\ \text{kcal}} \right) \left( \frac{1\ \text{m}}{10^{10} \text{\AA}} \right) \left( \frac{1 \text{mol}}{6.02\times10^{23}} \right)  } \nonumber\\
+&=& 1.325 \text{\AA}^3
+\end{eqnarray}
+
+
+\subsection{Dielectric constant from polarizability}
+
+The dielectric constant expected from the polarizability can be calculated using the Clausius-Mossotti equation. 
+
+Suppose the polarizability is $1.325 \text{\AA}^3$ and we are running 1372 molecules in a simulation box with volume $29218 \text{\AA}^3$, the dielectric constant is given by
+\begin{eqnarray}
+\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{4 \pi}{3} N \alpha\nonumber\\
+\frac{\varepsilon-1}{\varepsilon+2} &=&  \frac{4 \pi}{3} \left( \frac{1372}{29218 \text{\AA}^3} \right) \left( 1.325 \text{\AA}^3 \right) \nonumber\\
+\epsilon &=&  2.029
+\end{eqnarray}
+
+
+\subsection{Dielectric constant from simulation}
+
+The dielectric constant in the simulation is calculated by 
+\begin{equation}
+\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{\left\langle M^2 \right\rangle }{ 3 \varepsilon_0 V k_B T}
+\end{equation}
+where the dipole moment squared $\left\langle M^2 \right\rangle$ is expressed in SI-based units. 
+
+Suppose we are getting a value of $\left\langle M^2 \right\rangle = 5 (e\text{\AA})^2$, and the simulation is at 300K and in a box of 29218 \AA$^3$, the dielectric constant is given by
+\begin{eqnarray}
+\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{ 5 (e\text{\AA})^2}{3  \left( 8.85 \times 10^{-12}\ \text{C}^2 \text{J}^{-1} \text{m}^{-1} \right) \left( 29218 \text{\AA}^3 \right) (1.38 
+\times 10^{-23} \text{J/K}) (300 \text{K})  }\nonumber\\
+&& \times\left( \frac{ 1.60 \times 10^{-19}\ \text{C} }{1\ e}\right)^2 \left( \frac{10^{10}\ \text{\AA}}{1\ \text{m}} \right)\nonumber\\
+\frac{\varepsilon-1}{\varepsilon+2} &=& 0.39856\nonumber\\
+\varepsilon &=& 2.99
+\end{eqnarray}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
