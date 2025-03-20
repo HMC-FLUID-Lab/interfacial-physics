@@ -195,17 +195,17 @@ Suppose the polarizability is $1.325 \text{\AA}^3$ and we are running 1372 molec
 
 The dielectric constant in the simulation is calculated by 
 \begin{equation}
-\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{\left\langle M^2 \right\rangle }{ 3 \varepsilon_0 V k_B T}
+\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{\left\langle M^2 \right\rangle }{ 9 \varepsilon_0 V k_B T}
 \end{equation}
 where the dipole moment squared $\left\langle M^2 \right\rangle$ is expressed in SI-based units. 
 
 Suppose we are getting a value of $\left\langle M^2 \right\rangle = 5 (e\text{\AA})^2$, and the simulation is at 300K and in a box of 29218 \AA$^3$, the dielectric constant is given by
 \begin{eqnarray}
-\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{ 5 (e\text{\AA})^2}{3  \left( 8.85 \times 10^{-12}\ \text{C}^2 \text{J}^{-1} \text{m}^{-1} \right) \left( 29218 \text{\AA}^3 \right) (1.38 
+\frac{\varepsilon-1}{\varepsilon+2} &=& \frac{ 5 (e\text{\AA})^2}{9  \left( 8.85 \times 10^{-12}\ \text{C}^2 \text{J}^{-1} \text{m}^{-1} \right) \left( 29218 \text{\AA}^3 \right) (1.38 
 \times 10^{-23} \text{J/K}) (300 \text{K})  }\nonumber\\
 && \times\left( \frac{ 1.60 \times 10^{-19}\ \text{C} }{1\ e}\right)^2 \left( \frac{10^{10}\ \text{\AA}}{1\ \text{m}} \right)\nonumber\\
-\frac{\varepsilon-1}{\varepsilon+2} &=& 0.39856\nonumber\\
-\varepsilon &=& 2.99
+\frac{\varepsilon-1}{\varepsilon+2} &=& 0.39856/3\nonumber\\
+\varepsilon &=& 1.45
 \end{eqnarray}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
