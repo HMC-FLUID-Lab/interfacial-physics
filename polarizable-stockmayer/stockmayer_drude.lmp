@@ -1,0 +1,80 @@
+# Polarizable Stockmayer fluid simulation using Drude oscillators
+units real
+atom_style full
+boundary p p p
+
+# Define bond style for core-Drude bonds BEFORE reading data
+bond_style harmonic
+
+# Appropriate special bonds for polarizable systems
+special_bonds lj/coul 0.0 0.0 1.0
+
+# Read data with extra space for special bonds
+read_data stockmayer_drude.data extra/special/per/atom 1
+
+# Define groups based on atom types
+# Type 1 = cores, Type 2 = Drudes
+group CORES type 1
+group DRUDES type 2
+group ATOMS type 1  # Only the cores go in this group
+
+# Identify which atom types are cores (C) and Drudes (D)
+fix DRUDE all drude C D
+
+# Setup pair styles with Thole damping - using standard pair styles
+pair_style hybrid/overlay lj/cut/coul/long 10.0 thole 2.6 10.0
+kspace_style pppm 1.0e-4
+
+# LJ interactions only for cores
+pair_coeff 1 1 lj/cut/coul/long 0.1553 3.166
+pair_coeff * 2 lj/cut/coul/long 0.0 0.0
+
+# Thole damping for dipole-dipole interactions
+pair_coeff 1 1 thole 1.45
+pair_coeff 1 2 thole 1.45
+pair_coeff 2 2 thole 1.45
+
+# Enable velocity communication for ghost atoms (required for Drude thermostat)
+comm_modify vel yes
+
+# Langevin thermostat for Drude model:
+# - Center of mass at 298K with 100 damping and seed 12345
+# - Relative Drude motion at 1K with 20 damping and seed 54321
+fix LANG all langevin/drude 298.0 100 12345 298.0 20 54321
+
+# Basic time integration (required with langevin/drude)
+fix NVE all nve
+
+# Prevent center of mass drift
+fix MOMENTUM all momentum 100 linear 1 1 1
+
+# Compute proper temperature for Drude model
+compute TDRUDE all temp/drude
+
+# Total dipole moment calculation
+compute DIP all dipole
+variable MUX equal c_DIP[1]
+variable MUY equal c_DIP[2]
+variable MUZ equal c_DIP[3]
+variable MU2 equal v_MUX*v_MUX+v_MUY*v_MUY+v_MUZ*v_MUZ
+fix DIPOUT all print 100 "${MUX} ${MUY} ${MUZ}" file dipole.dat screen no
+
+# Output settings
+thermo_style custom step temp c_TDRUDE[1] c_TDRUDE[2] press vol v_MU2
+thermo 1000
+
+# Use small timestep due to fast Drude oscillations
+timestep 0.5
+
+# Equilibration
+run 50000
+
+# Production run with trajectory dumping
+dump DUMP all custom 1000 dump.lammpstrj id type q x y z
+dump_modify DUMP sort id
+
+# Long production run
+run 500000
+
+# Write final configuration
+write_data stockmayer_final.data

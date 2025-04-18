@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # polarizer.py - add Drude oscillators to LAMMPS data file.
-# Agilio Padua <agilio.padua@univ-bpclermont.fr>
+# Modified version to handle missing headers/type labels
+# Originally by: Agilio Padua <agilio.padua@univ-bpclermont.fr>
 # Alain Dequidt <alain.dequidt@univ-bpclermont.fr>
-# version 2017/02/08
 
 import sys
 import argparse
@@ -14,7 +14,7 @@ usage = """Add Drude oscillators to LAMMPS data file.
 Format of file containing specification of Drude oscillators:
 
   # type  dm/u  dq/e  k/(kJ/molA2)  alpha/A3  thole
-  C3H     1.0   0.0   4184.0        2.051     2.6
+  OW      0.4   -1.0   2092.0        1.45     2.6
   ...
 
 * dm is the mass to place on the Drude particle (taken from its core),
@@ -35,16 +35,14 @@ identification of the atom types within the force field database:
   2   12.011  # CTO
   ...
 
-This script will add new atom types, new bond types, new atoms and
-new bonds to the data file.
+===== MODIFICATIONS =====
+This modified version can handle:
+- Missing type labels in the Masses section (using a command line flag)
+- Missing sections by creating them if needed
+- More robust handling of input files
 
-It will also generate some commands to be included in the LAMMPS input script,
-which are related to the topology and force field, namely fix drude,
-pair_style and pair_coeff commands. For information on thermostating please
-read the documentation of the DRUDE package.
-
-This tool can also be used to revert a Drude-polarized data file to a
-non-polarizable one.
+Command line flags:
+  -t TYPE, --type TYPE   Add "# TYPE" label to all mass entries (if missing)
 """
 
 # keywords of header and main sections (from data.py in Pizza.py)
@@ -101,7 +99,7 @@ def velline(at):
 
 class Data(object):
 
-    def __init__(self, datafile):
+    def __init__(self, datafile, default_type=None):
         '''read LAMMPS data file (from data.py in Pizza.py)'''
 
         # for extract method
@@ -110,6 +108,7 @@ class Data(object):
         self.atoms = []
         self.bonds = []
         self.idmap = {}
+        self.default_type = default_type
 
         self.nselect = 1
 
@@ -150,16 +149,29 @@ class Data(object):
                     if keyword == line:
                         found = 1
                         if length not in headers:
-                            raise RuntimeError("data section {} "\
-                                  "has no matching header value".format(line))
-                        f.readline()
+                            if length == "atoms" and keyword == "Atoms":
+                                print("Warning: Missing 'atoms' header. Will attempt to count from Atoms section.")
+                                line_count = count_atoms_in_section(f)
+                                headers[length] = line_count
+                                f.seek(0)  # Reset file position
+                                # Skip to Atoms section again
+                                while True:
+                                    line = f.readline()
+                                    if not line or line.strip() == "Atoms":
+                                        break
+                            else:
+                                print(f"Warning: '{length}' header not found for {keyword} section")
+                                headers[length] = 0  # Default to 0 for missing headers
+                        f.readline()  # Skip header line
                         list_ = []
                         for _ in range(headers[length]):
                             list_.append(f.readline())
                         sections[keyword] = list_
                 if not found:
-                    raise RuntimeError("invalid section {} in data"\
-                                       " file".format(line))
+                    # Try to continue on unknown section
+                    print(f"Warning: skipping unrecognized section: {line}")
+                    line = f.readline().strip()
+                    continue
             #f.readline()
             line = f.readline()
             if not line:
@@ -169,6 +181,13 @@ class Data(object):
             line = line.strip()
 
         f.close()
+        
+        # Initialize empty sections that might be needed later
+        if "Bond Coeffs" not in sections and "bond types" in headers:
+            sections["Bond Coeffs"] = []
+        if "Bonds" not in sections and "bonds" in headers:
+            sections["Bonds"] = []
+            
         self.headers = headers
         self.sections = sections
 
@@ -206,23 +225,38 @@ class Data(object):
         missinglabels = False
         for line in self.sections['Masses']:
             tok = line.split()
-            if len(tok) < 4:
-                print("error: missing type for atom ID " + tok[0] +
-                      " in Masses section")
-                missinglabels = True
-                continue
             atomtype = {}
             atomtype['id'] = int(tok[0])
             atomtype['m'] = float(tok[1])
-            atomtype['type'] = tok[3]
+            
+            # Check if there's a type label in the comment
+            if len(tok) < 4:
+                if self.default_type:
+                    # Use default type if provided
+                    atomtype['type'] = self.default_type
+                    print(f"Using default type '{self.default_type}' for atom ID {tok[0]}")
+                else:
+                    print("Warning: missing type for atom ID " + tok[0] +
+                          " in Masses section")
+                    missinglabels = True
+                    atomtype['type'] = f"TYPE{tok[0]}"  # Default name based on ID
+                    continue
+            else:
+                atomtype['type'] = tok[3]
+                
             self.atomtypes.append(atomtype)
 
-        if missinglabels:
-            sys.exit(0)
+        if missinglabels and not self.default_type:
+            print("Warning: some atom types have no labels. Using generated labels.")
+            print("Consider using -t/--type flag to set a default type.")
 
         # extract atom registers
         for line in self.sections['Atoms']:
             tok = line.split()
+            if len(tok) < 7:
+                print(f"Warning: invalid atom line: {line}")
+                continue
+                
             atom = {}
             atom['n'] = int(tok[0])
             atom['mol'] = int(tok[1])
@@ -232,14 +266,23 @@ class Data(object):
             atom['y'] = float(tok[5])
             atom['z'] = float(tok[6])
             #atom['note'] = ''.join([s + ' ' for s in tok[7:]]).strip()
-            atom['note'] = ' '.join(tok[7:])
+            atom['note'] = ' '.join(tok[7:]) if len(tok) > 7 else ''
             self.atoms.append(atom)
             self.idmap[atom['n']] = atom
 
         if 'Velocities' in self.sections:
             for line in self.sections['Velocities']:
                 tok = line.split()
-                atom = self.idmap[int(tok[0])]
+                if len(tok) < 4:
+                    print(f"Warning: invalid velocity line: {line}")
+                    continue
+                    
+                atom_id = int(tok[0])
+                if atom_id not in self.idmap:
+                    print(f"Warning: velocity for unknown atom ID: {atom_id}")
+                    continue
+                    
+                atom = self.idmap[atom_id]
                 atom['vx'] = float(tok[1])
                 atom['vy'] = float(tok[2])
                 atom['vz'] = float(tok[3])
@@ -251,6 +294,23 @@ class Data(object):
             raise RuntimeError("cannot polarize a data with Pair Coeffs")
 
         self.extract_nonpol()
+
+        # Initialize headers if missing
+        if 'atoms' not in self.headers:
+            self.headers['atoms'] = len(self.atoms)
+            print(f"Warning: 'atoms' header not found. Setting to {len(self.atoms)}.")
+            
+        if 'bonds' not in self.headers:
+            self.headers['bonds'] = 0
+            print("Warning: 'bonds' header not found. Setting to 0.")
+            
+        if 'atom types' not in self.headers:
+            self.headers['atom types'] = max(at['id'] for at in self.atomtypes)
+            print(f"Warning: 'atom types' header not found. Setting to {self.headers['atom types']}.")
+            
+        if 'bond types' not in self.headers:
+            self.headers['bond types'] = 0
+            print("Warning: 'bond types' header not found. Setting to 0.")
 
         natom = self.headers['atoms']
         nbond = self.headers['bonds']
@@ -297,6 +357,11 @@ class Data(object):
                     break
 
         self.headers['bond types'] += len(newbdtypes)
+        
+        # Create Bond Coeffs section if it doesn't exist
+        if 'Bond Coeffs' not in self.sections:
+            self.sections['Bond Coeffs'] = []
+            
         for bdt in newbdtypes:
             self.sections['Bond Coeffs'].append(bdtline(bdt))
 
@@ -357,8 +422,13 @@ class Data(object):
         self.sections['Atoms'] = []
         for atom in self.atoms + newatoms:
             self.sections['Atoms'].append(atomline(atom))
+            
+        if 'Bonds' not in self.sections:
+            self.sections['Bonds'] = []
+            
         for bond in newbonds:
             self.sections['Bonds'].append(bondline(bond))
+            
         if 'Velocities' in self.sections:
             self.sections['Velocities'] = []
             for atom in self.atoms + newatoms:
@@ -387,19 +457,24 @@ class Data(object):
                     atomtype['dflag'] = 'd'
                 print(atomtype['dflag'])
             else:
-                raise RuntimeError("comments in Masses section required "\
+                if self.default_type:
+                    atomtype['type'] = self.default_type
+                    atomtype['dflag'] = 'n'
+                else:
+                    raise RuntimeError("comments in Masses section required "\
                                    "to identify cores (DC) and Drudes (DP)")
             self.atomtypes.append(atomtype)
                         
         # extract bond type data
-        for line in self.sections['Bond Coeffs']:
-            tok = line.split()
-            bondtype = {}
-            bondtype['id'] = int(tok[0])
-            bondtype['k'] = float(tok[1])
-            bondtype['r0'] = float(tok[2])
-            bondtype['note'] = ''.join([s + ' ' for s in tok[3:]]).strip()
-            self.bondtypes.append(bondtype)
+        if 'Bond Coeffs' in self.sections:
+            for line in self.sections['Bond Coeffs']:
+                tok = line.split()
+                bondtype = {}
+                bondtype['id'] = int(tok[0])
+                bondtype['k'] = float(tok[1])
+                bondtype['r0'] = float(tok[2])
+                bondtype['note'] = ''.join([s + ' ' for s in tok[3:]]).strip()
+                self.bondtypes.append(bondtype)
 
         # extract atom registers
         for line in self.sections['Atoms']:
@@ -413,31 +488,38 @@ class Data(object):
             atom['y'] = float(tok[5])
             atom['z'] = float(tok[6])
             # atom['note'] = ''.join([s + ' ' for s in tok[7:-1]]).strip()
-            if tok[-1] == 'DC':
-              atom['note'] = ' '.join(tok[7:-1])
+            if len(tok) > 7:
+                if tok[-1] == 'DC':
+                    atom['note'] = ' '.join(tok[7:-1])
+                else:
+                    atom['note'] = ' '.join(tok[7:])
             else:
-              atom['note'] = ' '.join(tok[7:])
+                atom['note'] = ''
             self.atoms.append(atom)
             self.idmap[atom['n']] = atom
 
         if 'Velocities' in self.sections:
             for line in self.sections['Velocities']:
                 tok = line.split()
-                atom = self.idmap[int(tok[0])]
-                atom['vx'] = float(tok[1])
-                atom['vy'] = float(tok[2])
-                atom['vz'] = float(tok[3])
+                if int(tok[0]) in self.idmap:
+                    atom = self.idmap[int(tok[0])]
+                    atom['vx'] = float(tok[1])
+                    atom['vy'] = float(tok[2])
+                    atom['vz'] = float(tok[3])
+                else:
+                    print(f"Warning: velocity data for non-existent atom ID {tok[0]}")
 
         # extract bond data
-        for line in self.sections['Bonds']:
-            tok = line.split()
-            bond = {}
-            bond['n'] = int(tok[0])
-            bond['id'] = int(tok[1])
-            bond['i'] = int(tok[2])
-            bond['j'] = int(tok[3])
-            bond['note'] = ''.join([s + ' ' for s in tok[4:]]).strip()
-            self.bonds.append(bond)
+        if 'Bonds' in self.sections:
+            for line in self.sections['Bonds']:
+                tok = line.split()
+                bond = {}
+                bond['n'] = int(tok[0])
+                bond['id'] = int(tok[1])
+                bond['i'] = int(tok[2])
+                bond['j'] = int(tok[3])
+                bond['note'] = ''.join([s + ' ' for s in tok[4:]]).strip()
+                self.bonds.append(bond)
 
 
     def depolarize(self, drude):
@@ -646,6 +728,25 @@ class Data(object):
 
 # --------------------------------------
 
+def count_atoms_in_section(file_obj):
+    """Count the number of atoms in the Atoms section by parsing it"""
+    line_count = 0
+    # Skip header line
+    file_obj.readline()
+    
+    # Count atom lines until we hit a blank line or a new section
+    while True:
+        pos = file_obj.tell()
+        line = file_obj.readline()
+        if not line or line.strip() == "":
+            break
+        if any(line.strip() == kw[0] for kw in skeywords):
+            file_obj.seek(pos)  # Move back before section header
+            break
+        line_count += 1
+            
+    return line_count
+
 kcal =  4.184                           # kJ
 eV   = 96.485                           # kJ/mol
 fpe0 =  0.000719756                     # (4 Pi eps0) in e^2/(kJ/mol A)
@@ -695,7 +796,9 @@ def main():
              formatter_class = argparse.RawTextHelpFormatter)
     parser.add_argument('-f', '--ffdrude', default = 'drude.dff',
                         help = 'Drude parameter file (default: drude.dff)')
-    parser.add_argument('-t', '--thole', type = float, default = 2.6,
+    parser.add_argument('-t', '--type', 
+                        help = 'Default atom type if missing in Masses section')
+    parser.add_argument('--thole', type = float, default = 2.6,
                         help = 'Thole damping parameter (default: 2.6)')
     parser.add_argument('-c', '--cutoff', type = float, default = 12.0,
                         help = 'distance cutoff/A (default: 12.0)')
@@ -724,7 +827,7 @@ def main():
     else:
         polar = ''
 
-    data = Data(args.infile)
+    data = Data(args.infile, args.type)
     drude = Drude(args.ffdrude, polar, args.positive, args.metal)
     if not args.depolarize:
         data.polarize(drude)

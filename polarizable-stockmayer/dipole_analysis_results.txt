@@ -1,0 +1,21 @@
+=== Dielectric Constant Analysis ===
+
+System volume: 29218.11 Å³ = 2.9218e-26 m³
+Temperature: 298.00 K
+Number of molecules: 1000
+
+Average dipole vector: [-0.0120, 0.0029, -0.0003] e·Å
+|⟨M⟩|²: 0.0002 (e·Å)²
+⟨|M|²⟩: 5.6095 (e·Å)²
+Dipole fluctuation (⟨|M|²⟩ - |⟨M⟩|²): 5.6094 (e·Å)²
+
+=== SI Unit Calculations ===
+Volume: 29218.11 Å³ = 2.9218e-26 m³
+Dipole fluctuation: 5.6094 (e·Å)² = 1.4399e-57 C²·m²
+Susceptibility (χ): 0.450936
+
+=== Dielectric Constant Results ===
+Dielectric constant without reaction field (ε = 1 + χ): 1.450936
+Dielectric constant with reaction field (ε = (1+2χ)/(1-χ)): 3.463843
+Dielectric constant (original calculation): 1.001358
+Dielectric constant (Clausius-Mossotti): 1.787286

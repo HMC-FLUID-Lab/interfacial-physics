@@ -1,0 +1,3 @@
+# Drude oscillator parameters for water-like model
+# type  dm/u  dq/e  k/(kJ/molA2)  alpha/A3  thole
+OW     0.4   -1.0   2092.0        1.45      2.6

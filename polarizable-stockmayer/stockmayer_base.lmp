@@ -1,0 +1,32 @@
+# Base Stockmayer fluid model (stockmayer_base.lmp)
+units real
+atom_style full
+boundary p p p
+
+# Create simulation box with water-like density (0.0334 molecules/Å³)
+lattice fcc 4.4
+region box block 0 7 0 7 0 7
+create_box 1 box
+create_atoms 1 box
+
+# Set water-like mass
+mass 1 18.0  # OW
+
+# Set LJ parameters similar to water
+pair_style lj/cut 10.0
+pair_coeff 1 1 0.1553 3.166  # Water-like LJ parameters
+
+# Initialize velocities at room temperature
+velocity all create 298.0 12345 dist gaussian
+
+# Energy minimization to eliminate bad contacts
+minimize 1.0e-4 1.0e-6 1000 10000
+
+# Short equilibration run
+fix 1 all nvt temp 298.0 298.0 100.0
+timestep 1.0
+run 10000
+unfix 1
+
+# Write data file ready for polarization
+write_data stockmayer_base.data nocoeff
